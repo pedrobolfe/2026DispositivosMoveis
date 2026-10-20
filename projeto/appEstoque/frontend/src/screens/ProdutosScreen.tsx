@@ -1,31 +1,54 @@
-import { useLayoutEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
+import { ScrollView, Text, View, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { BotaoSair } from '../components/BotaoSair';
-
-// TODO (atividade dos alunos): implementar a tela de Produtos.
-// A API já está pronta em `produtoApi` (src/api/api.ts):
-//   - produtoApi.listar(): Promise<Produto[]>
-//   - produtoApi.criar({ nome, preco, quantidade, categoriaId }): Promise<Produto>
-// Usem CategoriasScreen.tsx como referência de estrutura (listagem + formulário).
+import { FormularioProduto } from '../components/FormularioProduto';
+import { ListaProdutos } from '../components/ListaProdutos';
+import { categoriaApi, produtoApi } from '../api/api';
+import { Categoria, Produto } from '../types';
 
 export function ProdutosScreen() {
   const navigation = useNavigation();
+  const [produtos, setProdutos] = useState<Produto[]>([]);
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [erro, setErro] = useState('');
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerRight: () => <BotaoSair /> });
   }, [navigation]);
 
+  const carregar = useCallback(async () => {
+    try {
+      const [produtosCarregados, categoriasCarregadas] = await Promise.all([
+        produtoApi.listar(),
+        categoriaApi.listar(),
+      ]);
+      setProdutos(produtosCarregados);
+      setCategorias(categoriasCarregadas);
+      setErro('');
+    } catch {
+      setErro('Não foi possível carregar os produtos e as categorias.');
+    }
+  }, []);
+
+  useEffect(() => {
+    void carregar();
+  }, [carregar]);
+
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.titulo}>Produtos</Text>
-      <Text style={styles.aviso}>Tela ainda não implementada.</Text>
-    </View>
+      {erro ? <Text style={styles.erro}>{erro}</Text> : null}
+      <View>
+        <ListaProdutos produtos={produtos} />
+        <FormularioProduto categorias={categorias} onProdutoCriado={carregar} />
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
+  container: { padding: 16 },
   titulo: { fontSize: 20, fontWeight: 'bold', marginBottom: 12 },
-  aviso: { color: '#666' },
+  erro: { color: '#b91c1c', marginBottom: 12 },
 });
